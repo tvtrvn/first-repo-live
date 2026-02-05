@@ -11,13 +11,12 @@ function durationToSeconds(iso?: string): number {
   return (Number(h) || 0) * 3600 + (Number(m) || 0) * 60 + (Number(s) || 0);
 }
 
-const SHORTS_MAX_SECONDS = 60; // Exclude Shorts (≤60s)
+const SHORTS_MAX_SECONDS = 60; // Shorts are ≤60s
 const PER_PAGE = 25;
-const MAX_VIDEOS = 100;
-// Quota-friendly: 1 query, 5 pages = 5 search (500 units) + ~5 videos.list (5 units) ≈ 505 units/load
-// (was 3 queries × 10 pages ≈ 3000+ units)
-const SEARCH_PAGES = 5;
-const SEARCH_QUERY = 'vpop music videos';
+const MAX_VIDEOS = 50; // 50 videos = 2 pages; long-form only
+// 2 queries × 3 pages ≈ 606 units/load → ~16 loads/day on 10k quota; long-form only
+const SEARCH_PAGES = 3;
+const SEARCH_QUERIES = ['vpop music videos', 'nhạc pop việt nam mv'];
 
 export async function GET(request: Request) {
   if (!API_KEY || API_KEY === 'paste_your_api_key_here') {
@@ -32,47 +31,55 @@ export async function GET(request: Request) {
     const pageParam = url.searchParams.get('page');
     const currentPage = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
 
-    // 1) Fetch one search query, limited pages to save quota (search.list = 100 units/request)
-    let videoIds: string[] = [];
-    let pageToken: string | undefined;
+    // 1) Fetch multiple search queries and merge (dedupe) to get enough candidates for long-form videos
+    const seenIds = new Set<string>();
+    const videoIds: string[] = [];
 
-    for (let p = 0; p < SEARCH_PAGES; p++) {
-      const searchParams = new URLSearchParams({
-        part: 'snippet',
-        type: 'video',
-        order: 'viewCount',
-        regionCode: 'VN',
-        q: SEARCH_QUERY,
-        maxResults: '50',
-        key: API_KEY,
-      });
-      if (pageToken) searchParams.set('pageToken', pageToken);
+    for (const query of SEARCH_QUERIES) {
+      let pageToken: string | undefined;
+      for (let p = 0; p < SEARCH_PAGES; p++) {
+        const searchParams = new URLSearchParams({
+          part: 'snippet',
+          type: 'video',
+          order: 'viewCount',
+          regionCode: 'VN',
+          q: query,
+          maxResults: '50',
+          key: API_KEY,
+        });
+        if (pageToken) searchParams.set('pageToken', pageToken);
 
-      const searchRes = await fetch(
-        `https://www.googleapis.com/youtube/v3/search?${searchParams}`,
-        { next: { revalidate: 3600 } }
-      );
-      if (!searchRes.ok) {
-        const error = await searchRes.json().catch(() => ({}));
-        const reason = error?.error?.errors?.[0]?.reason;
-        const message =
-          reason === 'quotaExceeded'
-            ? 'YouTube API quota exceeded. Try again tomorrow or increase quota in Google Cloud Console.'
-            : reason === 'rateLimitExceeded'
-              ? 'YouTube API rate limit exceeded. Please try again in a few minutes.'
-              : 'YouTube API error';
-        return NextResponse.json(
-          { error: message, details: error },
-          { status: searchRes.status }
+        const searchRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/search?${searchParams}`,
+          { next: { revalidate: 3600 } }
         );
+        if (!searchRes.ok) {
+          const error = await searchRes.json().catch(() => ({}));
+          const reason = error?.error?.errors?.[0]?.reason;
+          const message =
+            reason === 'quotaExceeded'
+              ? 'YouTube API quota exceeded. Try again tomorrow or increase quota in Google Cloud Console.'
+              : reason === 'rateLimitExceeded'
+                ? 'YouTube API rate limit exceeded. Please try again in a few minutes.'
+                : 'YouTube API error';
+          return NextResponse.json(
+            { error: message, details: error },
+            { status: searchRes.status }
+          );
+        }
+        const searchData = await searchRes.json();
+        const pageIds = (searchData.items ?? [])
+          .map((item: { id?: { videoId?: string } }) => item.id?.videoId)
+          .filter(Boolean) as string[];
+        for (const id of pageIds) {
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            videoIds.push(id);
+          }
+        }
+        pageToken = searchData.nextPageToken;
+        if (!pageToken || pageIds.length === 0) break;
       }
-      const searchData = await searchRes.json();
-      const pageIds = (searchData.items ?? [])
-        .map((item: { id?: { videoId?: string } }) => item.id?.videoId)
-        .filter(Boolean) as string[];
-      videoIds = videoIds.concat(pageIds);
-      pageToken = searchData.nextPageToken;
-      if (!pageToken || pageIds.length === 0) break;
     }
 
     if (videoIds.length === 0) {
@@ -142,11 +149,9 @@ export async function GET(request: Request) {
         durationSeconds,
       };
     });
-    // Exclude YouTube Shorts (duration ≤ 60 seconds)
+    // Long-form only: exclude Shorts (≤60s), sort by view count, cap at MAX_VIDEOS
     videos = videos.filter((v: VideoItem) => (v.durationSeconds ?? 0) > SHORTS_MAX_SECONDS);
-    // Sort only by view count, descending
     videos = videos.sort((a: VideoItem, b: VideoItem) => Number(b.viewCount ?? 0) - Number(a.viewCount ?? 0));
-    // Cap total to MAX_VIDEOS
     videos = videos.slice(0, MAX_VIDEOS);
 
     const totalCount = videos.length;

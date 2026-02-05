@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { VideoCard } from "./components/VideoCard";
 
 export const dynamic = "force-dynamic";
@@ -31,9 +32,16 @@ export default async function Home({
   searchParams: Promise<{ page?: string }>;
 }) {
   const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
-  const { videos, error, pagination } = await getVideos(page);
-  const rankOffset = (pagination?.page ?? 1) * 25 - 25;
+  const requestedPage = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const { videos, error, pagination } = await getVideos(requestedPage);
+  const totalPages = pagination?.totalPages ?? 1;
+  // If URL says page 2+ but there’s only one page, redirect to page 1 so URL and content match
+  if (!error && requestedPage > 1 && requestedPage > totalPages) {
+    redirect(requestedPage === 2 ? "/" : `/?page=1`);
+  }
+  const pageNum = pagination?.page ?? 1;
+  const totalCount = pagination?.totalCount ?? videos.length;
+  const rankOffset = pageNum * 25 - 25;
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -47,7 +55,7 @@ export default async function Home({
       >
         <div className="mx-auto max-w-6xl">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Top Vietnamese Pop music videos
+            Top 50 Most Viewed Vietnamese Pop music videos
           </h1>
           <p className="mt-1 text-sm opacity-85">
             Nhạc Pop Việt Nam · Sorted by view count · Hover to preview
@@ -120,7 +128,7 @@ export default async function Home({
               >
                 {pagination.hasPrevPage && (
                   <Link
-                    href={pagination.page === 2 ? "/" : `?page=${pagination.page - 1}`}
+                    href={pagination.page === 2 ? "/" : `/?page=${pagination.page - 1}`}
                     className="rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
                     style={{
                       background: "var(--card-bg)",
@@ -141,7 +149,7 @@ export default async function Home({
                 </span>
                 {pagination.hasNextPage && (
                   <Link
-                    href={`?page=${pagination.page + 1}`}
+                    href={`/?page=${pagination.page + 1}`}
                     className="rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
                     style={{
                       background: "var(--accent)",

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Top Vietnamese Music Videos",
-  description: "Top Most viewed Vietnamese music videos (Nhạc Việt Nam), sorted by view count. Hover to preview.",
+  title: "Top 50 Most Viewed Vietnamese Music Videos",
+  description: "Top 50 Most viewed Vietnamese music videos (Nhạc Việt Nam), sorted by view count. Hover to preview.",
 };
 
 export default function RootLayout({
