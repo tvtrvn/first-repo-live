@@ -1,3 +1,4 @@
+import type { Collection } from "mongodb";
 import { NextResponse } from "next/server";
 import { getDb } from "../../../../lib/mongodb";
 
@@ -39,8 +40,6 @@ export async function GET(request: Request) {
     // Determine today's key (UTC date, e.g. "2026-02-03")
     const todayKey = new Date().toISOString().slice(0, 10);
 
-    // Check MongoDB for an existing snapshot for today
-    const db = await getDb();
     type SnapshotVideo = {
       id: string;
       title?: string;
@@ -50,19 +49,27 @@ export async function GET(request: Request) {
       viewCount?: string;
       likeCount?: string;
     };
-    const snapshots = db.collection<{ date: string; videos: SnapshotVideo[]; createdAt: Date }>(
-      "youtubeDailySnapshots"
-    );
-    // TTL index so old snapshots are pruned automatically (e.g. keep ~30 days)
-    await snapshots.createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
+    type SnapshotDoc = { date: string; videos: SnapshotVideo[]; createdAt: Date };
+    let videos: SnapshotVideo[] | null = null;
+    let snapshots: Collection<SnapshotDoc> | null = null;
 
-    const existing = await snapshots.findOne({ date: todayKey });
+    // Try MongoDB snapshot cache first. If Mongo is down in production, continue without cache.
+    try {
+      const db = await getDb();
+      snapshots = db.collection<SnapshotDoc>("youtubeDailySnapshots");
+      // TTL index so old snapshots are pruned automatically (e.g. keep ~30 days)
+      await snapshots.createIndex({ createdAt: 1 }, { expireAfterSeconds: 60 * 60 * 24 * 30 });
+      const existing = await snapshots.findOne({ date: todayKey });
+      if (existing && Array.isArray(existing.videos)) {
+        videos = existing.videos;
+      }
+    } catch (mongoErr) {
+      console.warn("Mongo snapshot unavailable, falling back to direct YouTube fetch:", mongoErr);
+    }
 
-    let videos: SnapshotVideo[];
-
-    if (existing && Array.isArray(existing.videos)) {
+    if (videos) {
       // Use cached snapshot (no YouTube API calls)
-      videos = existing.videos;
+      // videos already assigned from snapshot
     } else {
       // No snapshot for today yet: fetch from YouTube once, store in MongoDB, and use that for the rest of the day
 
@@ -225,12 +232,18 @@ export async function GET(request: Request) {
       // Drop durationSeconds for storage / response
       videos = internalVideos.map(({ durationSeconds: _d, ...rest }) => rest);
 
-      // Store snapshot for today
-      await snapshots.updateOne(
-        { date: todayKey },
-        { $set: { date: todayKey, videos, createdAt: new Date() } },
-        { upsert: true }
-      );
+      // Store snapshot for today if Mongo is available; ignore cache-write failures.
+      if (snapshots) {
+        try {
+          await snapshots.updateOne(
+            { date: todayKey },
+            { $set: { date: todayKey, videos, createdAt: new Date() } },
+            { upsert: true }
+          );
+        } catch (mongoWriteErr) {
+          console.warn("Failed to write Mongo snapshot; serving live YouTube data:", mongoWriteErr);
+        }
+      }
     }
 
     const totalCount = videos.length;
