@@ -64,6 +64,7 @@ _None — this project uses the global skills below._
 | Skill | Purpose |
 |---|---|
 | `brandkit` | Premium brand-kit image generation skill for creating high-end brand-guidelines boards, logo systems, identity decks, and visual-… |
+| `claudescore` | Grade how good a Claude setup is and explain how to improve it |
 | `context-budget` | Estimate per-turn token cost of this project's `.claude/` configuration and `CLAUDE.md` |
 | `design-taste-frontend` | Anti-slop frontend skill for landing pages, portfolios, and redesigns |
 | `find-docs` | Retrieves up-to-date, version-specific documentation and code examples for a developer library/framework/SDK/CLI/cloud service vi… |
