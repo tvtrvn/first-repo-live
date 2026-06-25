@@ -42,6 +42,13 @@ This project is indexed by GitNexus as **first-repo-live** (125 symbols, 130 rel
 
 <!-- gitnexus:end -->
 
+## Project rules
+
+- **Purpose:** Next.js app showing the top 50–100 most-viewed long-form Vietnamese pop music videos from YouTube, cached daily in MongoDB.
+- **Layout:** `app/` · `app/api/youtube/test/route.ts` (orchestrator) · `app/components/` · `lib/mongodb.ts` · `docs/` · `public/`
+- **Build / test:** `npm run dev` · `npm run build` · `npm start` · `npm run lint`
+- **Do / don't:** Read `YOUTUBE_API_KEY` / `MONGODB_URI` only server-side (never the browser bundle); keep the API route on the Node.js runtime. Global coding standards live in `~/.claude/CLAUDE.md`.
+
 <!-- skills:start -->
 ## Available Skills
 

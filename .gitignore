@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+.gitnexus
+
+# build output
+dist/
+
+# claude
+.claude/settings.local.json
