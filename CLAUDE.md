@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **first-repo-live** (209 symbols, 223 relationships, 2 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **first-repo-live** (205 symbols, 219 relationships, 2 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -60,7 +60,7 @@ _None — this project uses the inherited global set below._
 
 ### Inherited global skills — descriptions in [../SKILLS.md](../SKILLS.md)
 
-- **code:** `gitnexus-cli` · `gitnexus-debugging` · `gitnexus-exploring` · `gitnexus-guide` · `gitnexus-impact-analysis` · `gitnexus-pr-review` · `gitnexus-refactoring`
+- **code:** `gitnexus-cli` · `gitnexus-debugging` · `gitnexus-exploring` · `gitnexus-guide` · `gitnexus-impact-analysis` · `gitnexus-pr-review` · `gitnexus-refactoring` · `vercel-react-best-practices`
 - **design:** `brandkit` · `design-taste-frontend` · `high-end-visual-design` · `image-to-code` · `impeccable-detector` · `redesign-existing-projects` · `stitch-design-taste` · `ui-ux-pro-max`
 - **docs:** `find-docs` · `walkthrough`
 - **meta:** `claudescore` · `context-budget` · `find-skills` · `full-output-enforcement` · `session-wrap` · `skill-updater`
