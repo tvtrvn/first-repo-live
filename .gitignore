@@ -46,3 +46,4 @@ dist/
 
 # claude
 .claude/settings.local.json
+.claude/skills/gitnexus/
